@@ -1,21 +1,38 @@
 const express = require('express');
 const tagsRouter = express.Router();
 
+const {
+    getPostsByTagName,
+    getAllTags
+} = require('../db');
+
 tagsRouter.use((req, res, next) => {
     console.log("A request is being made to /tags");
 
-    next(); // THIS IS DIFFERENT
+    next();
 });
 
-const { getAllTags } = require('../db');
-
-// UPDATE
 tagsRouter.get('/', async (req, res) => {
     const tags = await getAllTags();
 
     res.send({
         tags
     });
+});
+
+tagsRouter.get('/:tagName/posts', async (req, res, next) => {
+    try {
+        const post = await getPostsByTagName();
+
+        res.send({ post });
+
+    } catch ({ name, message }) {
+
+        next({
+            name: 'IncorrectCredentialsError',
+            message: 'Post by tag name failed'
+        });
+    }
 });
 
 module.exports = tagsRouter;
