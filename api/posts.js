@@ -3,43 +3,13 @@ const postsRouter = express.Router();
 
 const { requireUser } = require('./utils');
 
-postsRouter.post('/', requireUser, async (req, res, next) => {
-    const { title, content, tags = "" } = req.body;
+const {
+    createPost,
+    getAllPosts,
+    updatePost,
+    getPostById,
+} = require('../db');
 
-    const tagArr = tags.trim().split(/\s+/)
-    const postData = {};
-
-    // only send the tags if there are some to send
-    if (tagArr.length) {
-        postData.tags = tagArr;
-    }
-
-    try {
-        const { rows: [postData] } = await client.query(`
-      INSERT INTO posts("authorId", title, content) 
-      VALUES($1, $2, $3)
-      RETURNING *;
-    `, [authorId, title, content]);
-        const post = await createPost(postData);
-        if (post) {
-            res.send(post)
-        } else {
-            next("Error")
-        }
-    } catch ({ name, message }) {
-        next({ name, message });
-    }
-});
-
-postsRouter.use((req, res, next) => {
-    console.log("A request is being made to /posts");
-
-    next(); // THIS IS DIFFERENT
-});
-
-const { getAllPosts } = require('../db');
-
-// UPDATE
 postsRouter.get('/', async (req, res, next) => {
     try {
         const allPosts = await getAllPosts();
@@ -49,10 +19,12 @@ postsRouter.get('/', async (req, res, next) => {
             if (post.active) {
                 return true;
             }
+
             // the post is not active, but it belogs to the current user
             if (req.user && post.author.id === req.user.id) {
                 return true;
             }
+
             // none of the above are true
             return false;
         });
@@ -60,6 +32,36 @@ postsRouter.get('/', async (req, res, next) => {
         res.send({
             posts
         });
+    } catch ({ name, message }) {
+        next({ name, message });
+    }
+});
+
+postsRouter.post('/', requireUser, async (req, res, next) => {
+    const { title, content, tags = "" } = req.body;
+
+    const tagArr = tags.trim().split(/\s+/)
+    const postData = {};
+
+    if (tagArr.length) {
+        postData.tags = tagArr;
+    }
+
+    try {
+        postData.authorId = req.user.id;
+        postData.title = title;
+        postData.content = content;
+
+        const post = await createPost(postData);
+
+        if (post) {
+            res.send(post);
+        } else {
+            next({
+                name: 'PostCreationError',
+                message: 'There was an error creating your post. Please try again.'
+            })
+        }
     } catch ({ name, message }) {
         next({ name, message });
     }

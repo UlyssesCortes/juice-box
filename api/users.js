@@ -1,25 +1,25 @@
 const express = require('express');
 const usersRouter = express.Router();
 
+const {
+    createUser,
+    getAllUsers,
+    getUserByUsername,
+} = require('../db');
 
+const jwt = require('jsonwebtoken');
 
-usersRouter.use((req, res, next) => {
-    console.log("A request is being made to /users");
+usersRouter.get('/', async (req, res, next) => {
+    try {
+        const users = await getAllUsers();
 
-    next();
+        res.send({
+            users
+        });
+    } catch ({ name, message }) {
+        next({ name, message });
+    }
 });
-
-const { getAllUsers, getUserByUsername } = require('../db');
-
-// UPDATE
-usersRouter.get('/', async (req, res) => {
-    const users = await getAllUsers();
-
-    res.send({
-        users
-    });
-});
-
 
 usersRouter.post('/login', async (req, res, next) => {
     const { username, password } = req.body;
@@ -36,16 +36,17 @@ usersRouter.post('/login', async (req, res, next) => {
         const user = await getUserByUsername(username);
 
         if (user && user.password == password) {
-            // create token & return to user
-            const jwt = require('jsonwebtoken');
-            const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET);
+            const token = jwt.sign({
+                id: user.id,
+                username
+            }, process.env.JWT_SECRET, {
+                expiresIn: '1w'
+            });
 
-            res.send(
-
-                {
-                    message: "you're logged in!",
-                    token: token
-                });
+            res.send({
+                message: "you're logged in!",
+                token
+            });
         } else {
             next({
                 name: 'IncorrectCredentialsError',
@@ -90,7 +91,7 @@ usersRouter.post('/register', async (req, res, next) => {
             token
         });
     } catch ({ name, message }) {
-        next({ name, message })
+        next({ name, message });
     }
 });
 
